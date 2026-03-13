@@ -348,7 +348,7 @@ def process_single_symbol(symbol):
 from concurrent.futures import ThreadPoolExecutor
 
 def cleanup_old_db_files():
-    """Removes option chain database files older than 3 days to save space."""
+    """Removes option chain database files older than 5 days to save space."""
     try:
         now = datetime.now()
         for f in os.listdir(DATA_DIR):
@@ -356,8 +356,8 @@ def cleanup_old_db_files():
                 date_str = f.replace("option_chain_", "").replace(".db", "")
                 try:
                     file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                    # If file is older than 3 days, delete it
-                    if (now - file_date).days > 3:
+                    # If file is older than 5 days, delete it
+                    if (now - file_date).days > 5:
                         file_path = os.path.join(DATA_DIR, f)
                         os.remove(file_path)
                         print(f"[{datetime.now().strftime('%H:%M:%S')}] Deleted old data file: {f}")
