@@ -1,0 +1,10 @@
+requests
+pandas
+schedule
+flask
+sqlalchemy
+selenium
+webdriver_manager
+kiteconnect
+flask-cors
+

@@ -1,0 +1,9 @@
+{
+    "telegram_bot_token": "8593962746:AAHQ4qhYvYVZYduJJtkstLlRV1oVJ7l-0es",
+    "telegram_chat_id": "7774290432",
+    "zerodha_api_key": "q92slf92nurqfuxr",
+    "zerodha_api_secret": "zivu0gcypntyf9n7z293zfruep20zksy",
+    "zerodha_access_token": "VhkEJtpuTV6A86LPq6rSFjZ6EZ9oXmVZ",
+    "trading_enabled": false,
+    "quantity": 75
+}

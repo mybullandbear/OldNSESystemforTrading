@@ -1,0 +1,15 @@
+{
+    "NIFTY": {
+        "signal": "SELL CE (Bearish)",
+        "timestamp": "10:01:06",
+        "spot": 25867.7,
+        "max_pain": 25900.0
+    },
+    "BANKNIFTY": {
+        "signal": "SELL CE (Bearish)",
+        "timestamp": "10:06:33",
+        "spot": 58984.15,
+        "max_pain": 59200.0
+    },
+    "telegram_enabled": false
+}

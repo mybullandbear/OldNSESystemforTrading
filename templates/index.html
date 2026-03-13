@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyBullAndBear - Option Chain</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --border-color: #334155;
+            --call-text: #4ade80;
+            --put-text: #f87171;
+            --header-bg: #0f172a;
+            --table-hover: #334155;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.025em;
+        }
+
+        /* Controls */
+        .controls-container {
+            padding: 1.5rem 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: center;
+            background-color: var(--bg-color);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        select,
+        input[type="range"] {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* Ticker Box (Checkbox) */
+        .ticker-box {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            transition: background-color 0.3s;
+        }
+
+        .status-dot.active {
+            background-color: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-grow: 1;
+            max-width: 400px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            height: 6px;
+            appearance: none;
+            background: var(--border-color);
+            border: none;
+            padding: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        #time-display {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            min-width: 60px;
+            color: var(--accent-color);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            padding: 0 2rem 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.875rem;
+        }
+
+        th,
+        td {
+            padding: 0.75rem 1rem;
+            text-align: right;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: var(--card-bg);
+            color: var(--text-secondary);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .col-group-header {
+            text-align: center;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 0.5rem;
+        }
+
+        .col-group-header.calls {
+            color: var(--call-text);
+            border-bottom: 2px solid var(--call-text);
+        }
+
+        .col-group-header.puts {
+            color: var(--put-text);
+            border-bottom: 2px solid var(--put-text);
+        }
+
+        .strike-col {
+            text-align: center;
+            background-color: var(--card-bg);
+            font-weight: 700;
+            color: var(--text-primary);
+            position: sticky;
+            left: 0;
+            z-index: 20;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .call-cell {
+            color: var(--call-text);
+        }
+
+        .put-cell {
+            color: var(--put-text);
+        }
+
+        tbody tr:hover {
+            background-color: var(--table-hover);
+        }
+
+        /* ATM Highlight */
+        .atm-row {
+            background-color: rgba(59, 130, 246, 0.15) !important;
+            border-top: 2px solid var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+            position: relative;
+        }
+
+        .atm-row td {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            margin: 1vh auto;
+            /* Reduced margin */
+            padding: 1rem;
+            /* Reduced padding */
+            border: 1px solid var(--border-color);
+            width: 98vw;
+            /* Almost full width */
+            height: 96vh;
+            /* Almost full height */
+            border-radius: 0.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Prevent outer scroll */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .close-btn {
+            color: var(--text-secondary);
+            font-size: 2rem;
+            font-weight: 700;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            /* Standardized gap */
+            height: 100%;
+        }
+
+        .chart-card {
+            background-color: var(--bg-color);
+            padding: 0.5rem;
+            /* Standard padding */
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            height: 100%;
+            /* Fill available height */
+            min-height: 0;
+            /* Allow shrinking for flex/grid */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Prevent spill */
+        }
+
+        .chart-card canvas {
+            flex-grow: 1;
+        }
+
+        @media (min-width: 1024px) {
+            .charts-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* Signal Colors - Advanced */
+        .signal-long-buildup {
+            background-color: rgba(34, 197, 94, 0.25) !important;
+            /* Green */
+            color: #4ade80 !important;
+            border-left: 3px solid #22c55e;
+        }
+
+        .signal-short-covering {
+            background-color: rgba(132, 204, 22, 0.25) !important;
+            /* Lime */
+            color: #bef264 !important;
+            border-left: 3px solid #84cc16;
+        }
+
+        .signal-short-buildup {
+            background-color: rgba(248, 113, 113, 0.25) !important;
+            /* Red */
+            color: #f87171 !important;
+            border-left: 3px solid #ef4444;
+        }
+
+        .signal-long-unwinding {
+            background-color: rgba(251, 146, 60, 0.25) !important;
+            /* Orange */
+            color: #fdba74 !important;
+            border-left: 3px solid #f97316;
+        }
+
+        .btn {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            color: white;
+        }
+
+        /* Live Monitor */
+        #live-monitor {
+            position: sticky;
+            top: 73px;
+            /* Height of header approx */
+            z-index: 90;
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.5rem 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .monitor-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .monitor-header {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.5rem;
+        }
+
+        .monitor-card {
+            background-color: var(--card-bg);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .monitor-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+        }
+
+        .monitor-value {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* View Toggle */
+        .toggle-container {
+            display: inline-flex;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.25rem;
+            gap: 0.25rem;
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.25rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        /* Signal Box Styles */
+        .signal-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.25rem 1rem;
+            border-radius: 0.5rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            min-width: 140px;
+        }
+
+        .signal-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .signal-value {
+            font-size: 1rem;
+            font-weight: 800;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .flash-red {
+            animation: flash-red-anim 1s infinite alternate;
+        }
+
+        .flash-green {
+            animation: flash-green-anim 1s infinite alternate;
+        }
+
+        @keyframes flash-red-anim {
+            from {
+                text-shadow: 0 0 5px red;
+                color: red;
+            }
+
+            to {
+                text-shadow: 0 0 20px red;
+                color: #ffcccc;
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes flash-green-anim {
+            from {
+                text-shadow: 0 0 5px lime;
+                color: #4ade80;
+            }
+
+            to {
+                text-shadow: 0 0 20px lime;
+                color: #ccffcc;
+                transform: scale(1.05);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="brand">MyBullAndBear - Option Chain</div>
+
+        <!-- Signal Display Container -->
+        <div style="display: flex; gap: 1.5rem; flex: 1; justify-content: center;">
+            <div class="signal-box" id="nifty-signal-box">
+                <div class="signal-title">NIFTY SIGNAL</div>
+                <div class="signal-value" id="nifty-signal-val">WAIT</div>
+            </div>
+            <div class="signal-box" id="banknifty-signal-box">
+                <div class="signal-title">BANKNIFTY SIGNAL</div>
+                <div class="signal-value" id="banknifty-signal-val">WAIT</div>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+            <div id="nifty-spot-display" style="font-weight: 600; color: var(--accent-color); font-size: 0.9rem;">NIFTY:
+                <span id="nifty-spot-val">Loading...</span>
+            </div>
+            <div id="banknifty-spot-display" style="font-weight: 600; color: var(--accent-color); font-size: 0.9rem;">
+                BANKNIFTY: <span id="banknifty-spot-val">Loading...</span></div>
+            <div id="last-updated-display"
+                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                Updated: <span id="last-updated-val">--:--:--</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="controls-container">
+        <div class="control-group">
+            <label>Symbol</label>
+            <select id="symbol-select">
+                <option value="NIFTY">NIFTY</option>
+                <option value="BANKNIFTY">BANKNIFTY</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Date</label>
+            <select id="date-select">
+                <option>Loading...</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Strikes</label>
+            <select id="strike-range">
+                <option value="10">Near 10</option>
+                <option value="20" selected>Near 20</option>
+                <option value="30">Near 30</option>
+                <option value="all">All</option>
+            </select>
+        </div>
+
+        <div class="ticker-box">
+            <div class="status-dot" id="live-dot"></div>
+            <label for="auto-update" style="cursor: pointer;">Live</label>
+            <input type="checkbox" id="auto-update" style="display: none;" checked>
+        </div>
+
+        <div class="ticker-box" id="telegram-box">
+            <div class="status-dot active" id="telegram-dot"></div>
+            <label for="telegram-toggle" style="cursor: pointer;">Telegram</label>
+            <input type="checkbox" id="telegram-toggle" style="display: none;" checked>
+        </div>
+
+        <div class="ticker-box" id="trading-box">
+            <div class="status-dot" id="trading-dot"></div>
+            <label for="trading-toggle" style="cursor: pointer;">Trading</label>
+            <input type="checkbox" id="trading-toggle" style="display: none;">
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <select id="nifty-expiry-select" class="selector" style="width: auto;">
+                <option value="AUTO">Nifty: Auto</option>
+            </select>
+            <select id="banknifty-expiry-select" class="selector" style="width: auto;">
+                <option value="AUTO">BankNifty: Auto</option>
+            </select>
+        </div>
+
+        <div class="toggle-container">
+            <button class="toggle-btn active" data-view="table">Table</button>
+            <button class="toggle-btn" data-view="charts">Charts</button>
+        </div>
+
+        <!-- Credentials Section -->
+        <div style="margin-top: 10px; width: 100%; max-width: 600px;">
+            <button id="creds-toggle-btn"
+                style="background: #334155; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 0.8rem;">
+                Managed Credentials ▼
+            </button>
+            <div id="creds-panel"
+                style="display: none; margin-top: 5px; background: #1e293b; padding: 10px; border-radius: 4px; border: 1px solid #334155;">
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 0.8rem; color: #94a3b8;">Zerodha API Key</label>
+                    <input type="text" id="api-key-input" placeholder="Enter API Key"
+                        style="width: 100%; padding: 5px; background: #0f172a; border: 1px solid #334155; color: white;">
+                </div>
+                <div id="manual-token-div" style="margin-bottom: 8px; display: none;">
+                    <label style="display: block; font-size: 0.8rem; color: #94a3b8;">Zerodha Access Token (Daily Token,
+                        NOT Secret)</label>
+                    <input type="password" id="access-token-input" placeholder="Enter Daily Access Token"
+                        style="width: 100%; padding: 5px; background: #0f172a; border: 1px solid #334155; color: white;">
+                </div>
+                <div style="margin-bottom: 5px; text-align: right;">
+                    <a href="#" id="toggle-manual-token"
+                        style="font-size: 0.75rem; color: #3b82f6; text-decoration: none;">Enter Access Token
+                        Manually</a>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 0.8rem; color: #94a3b8;">Zerodha API Secret (For
+                        Auto-Login)</label>
+                    <input type="password" id="api-secret-input" placeholder="Enter API Secret"
+                        style="width: 100%; padding: 5px; background: #0f172a; border: 1px solid #334155; color: white;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="login-btn"
+                        style="flex: 2; background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem;">Login
+                        with Zerodha</button>
+                    <button id="save-creds-btn"
+                        style="flex: 1; background: #334155; color: white; border: none; padding: 10px 5px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Save
+                        / Update</button>
+                </div>
+                <span id="creds-status" style="margin-left: 10px; font-size: 0.8rem;"></span>
+            </div>
+        </div>
+
+        <button id="refresh-btn" class="btn">Refresh</button>
+
+        <div class="slider-container">
+            <label>Time</label>
+            <input type="range" id="time-slider" min="0" max="100" value="0" disabled>
+            <span id="time-display">--:--</span>
+        </div>
+    </div>
+
+    <div id="live-monitor">
+        <!-- NIFTY Section -->
+        <div class="monitor-section">
+            <div class="monitor-header">NIFTY</div>
+            <div class="monitor-grid">
+                <div class="monitor-card">
+                    <div class="monitor-label">Call OI</div>
+                    <div class="monitor-value" id="nifty-ce-oi">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Put OI</div>
+                    <div class="monitor-value" id="nifty-pe-oi">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">PCR</div>
+                    <div class="monitor-value" id="nifty-pcr">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Call Chg</div>
+                    <div class="monitor-value" id="nifty-ce-chg">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Put Chg</div>
+                    <div class="monitor-value" id="nifty-pe-chg">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Max Pain</div>
+                    <div class="monitor-value" id="nifty-max-pain">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BANKNIFTY Section -->
+        <div class="monitor-section">
+            <div class="monitor-header">BANKNIFTY</div>
+            <div class="monitor-grid">
+                <div class="monitor-card">
+                    <div class="monitor-label">Call OI</div>
+                    <div class="monitor-value" id="banknifty-ce-oi">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Put OI</div>
+                    <div class="monitor-value" id="banknifty-pe-oi">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">PCR</div>
+                    <div class="monitor-value" id="banknifty-pcr">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Call Chg</div>
+                    <div class="monitor-value" id="banknifty-ce-chg">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Put Chg</div>
+                    <div class="monitor-value" id="banknifty-pe-chg">-</div>
+                </div>
+                <div class="monitor-card">
+                    <div class="monitor-label">Max Pain</div>
+                    <div class="monitor-value" id="banknifty-max-pain">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View: Table -->
+    <div id="view-table">
+        <!-- Legend -->
+        <div class="legend-container"
+            style="padding: 0 2rem 1rem; display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.875rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div
+                    style="width: 12px; height: 12px; background-color: rgba(34, 197, 94, 0.25); border: 1px solid #22c55e; border-radius: 2px;">
+                </div>
+                <span style="color: var(--text-secondary);">Long Buildup</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div
+                    style="width: 12px; height: 12px; background-color: rgba(132, 204, 22, 0.25); border: 1px solid #84cc16; border-radius: 2px;">
+                </div>
+                <span style="color: var(--text-secondary);">Short Covering</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div
+                    style="width: 12px; height: 12px; background-color: rgba(248, 113, 113, 0.25); border: 1px solid #ef4444; border-radius: 2px;">
+                </div>
+                <span style="color: var(--text-secondary);">Short Buildup</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div
+                    style="width: 12px; height: 12px; background-color: rgba(251, 146, 60, 0.25); border: 1px solid #f97316; border-radius: 2px;">
+                </div>
+                <span style="color: var(--text-secondary);">Long Unwinding</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th colspan="6" class="col-group-header calls">CALLS</th>
+                        <th class="strike-col">STRIKE</th>
+                        <th colspan="6" class="col-group-header puts">PUTS</th>
+                    </tr>
+                    <tr>
+                        <th>OI</th>
+                        <th>Chng OI</th>
+                        <th>Vol</th>
+                        <th>IV</th>
+                        <th>LTP</th>
+                        <th>Chng</th>
+                        <th class="strike-col"></th>
+                        <th>LTP</th>
+                        <th>Chng</th>
+                        <th>Vol</th>
+                        <th>IV</th>
+                        <th>OI</th>
+                        <th>Chng OI</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Data will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- View: Charts -->
+    <div id="view-charts" style="display: none; padding: 1rem 2rem;">
+        <!-- Charts Container (Originally from Modal) -->
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+
+            <!-- NIFTY Row -->
+            <div
+                style="display: flex; flex-direction: column; border-bottom: 2px solid var(--border-color); padding-bottom: 1rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-left: 0.5rem; border-left: 4px solid #3b82f6;">
+                    <h3 style="color: var(--text-primary); font-size: 1.25rem; margin: 0;">NIFTY 50</h3>
+                </div>
+                <div style="height: 300px;">
+                    <div class="charts-grid">
+                        <div class="chart-card"><canvas id="niftyOIChart"></canvas></div>
+                        <div class="chart-card"><canvas id="niftyOIChangeChart"></canvas></div>
+                        <div class="chart-card"><canvas id="niftyMaxPainChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BANKNIFTY Row -->
+            <div style="display: flex; flex-direction: column; padding-top: 1rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-left: 0.5rem; border-left: 4px solid #3b82f6;">
+                    <h3 style="color: var(--text-primary); font-size: 1.25rem; margin: 0;">BANKNIFTY</h3>
+                </div>
+                <div style="height: 300px;">
+                    <div class="charts-grid">
+                        <div class="chart-card"><canvas id="bankNiftyOIChart"></canvas></div>
+                        <div class="chart-card"><canvas id="bankNiftyOIChangeChart"></canvas></div>
+                        <div class="chart-card"><canvas id="bankNiftyMaxPainChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        const symbolSelect = document.getElementById('symbol-select');
+        const dateSelect = document.getElementById('date-select');
+        const strikeRangeSelect = document.getElementById('strike-range');
+        const autoUpdateCheck = document.getElementById('auto-update');
+        const liveDot = document.getElementById('live-dot');
+        const timeSlider = document.getElementById('time-slider');
+        const timeDisplay = document.getElementById('time-display');
+        const tableBody = document.getElementById('table-body');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const telegramToggle = document.getElementById('telegram-toggle');
+        const telegramDot = document.getElementById('telegram-dot');
+        const tradingToggle = document.getElementById('trading-toggle');
+        const tradingDot = document.getElementById('trading-dot');
+        const niftyExpirySelect = document.getElementById('nifty-expiry-select');
+        const bankniftyExpirySelect = document.getElementById('banknifty-expiry-select');
+
+        // Toggle Logic
+        const toggleBtns = document.querySelectorAll('.toggle-btn');
+        const viewTable = document.getElementById('view-table');
+        const viewCharts = document.getElementById('view-charts');
+        let currentView = 'table'; // 'table' or 'charts'
+
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                currentView = view;
+
+                // Update Buttons
+                toggleBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update View Visibility
+                if (view === 'table') {
+                    viewTable.style.display = 'block';
+                    viewCharts.style.display = 'none';
+                    // Trigger data fetch if needed (optional, auto-update handles it)
+                } else {
+                    viewTable.style.display = 'none';
+                    viewCharts.style.display = 'block';
+                    fetchChartData(); // Immediate fetch
+                }
+            });
+        });
+
+        // Telegram Toggle Logic
+        async function fetchTelegramStatus() {
+            try {
+                const response = await fetch('/api/telegram_status');
+                const data = await response.json();
+                telegramToggle.checked = data.enabled;
+                updateTelegramUI(data.enabled);
+            } catch (error) {
+                console.error('Error fetching Telegram status:', error);
+            }
+        }
+
+        function updateTelegramUI(enabled) {
+            if (enabled) {
+                telegramDot.classList.add('active');
+            } else {
+                telegramDot.classList.remove('active');
+            }
+        }
+
+        telegramToggle.addEventListener('change', async () => {
+            const enabled = telegramToggle.checked;
+            updateTelegramUI(enabled);
+            try {
+                await fetch('/api/telegram_status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+            } catch (error) {
+                console.error('Error setting Telegram status:', error);
+                // Revert UI on error
+                telegramToggle.checked = !enabled;
+                updateTelegramUI(!enabled);
+            }
+        });
+
+        // Initial fetch
+        fetchTelegramStatus();
+
+        // Trading Toggle Logic
+        async function fetchTradingStatus() {
+            try {
+                const response = await fetch('/api/trading_status');
+                const data = await response.json();
+                tradingToggle.checked = data.enabled;
+                updateTradingUI(data.enabled);
+            } catch (error) {
+                console.error('Error fetching Trading status:', error);
+            }
+        }
+
+        function updateTradingUI(enabled) {
+            if (enabled) {
+                tradingDot.classList.add('active');
+            } else {
+                tradingDot.classList.remove('active');
+            }
+        }
+
+        tradingToggle.addEventListener('change', async () => {
+            const enabled = tradingToggle.checked;
+            updateTradingUI(enabled);
+            try {
+                await fetch('/api/trading_status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+            } catch (error) {
+                console.error('Error setting Trading status:', error);
+                // Revert UI on error
+                tradingToggle.checked = !enabled;
+                updateTradingUI(!enabled);
+            }
+        });
+
+        fetchTradingStatus();
+
+        // Expiry Selection Logic
+        async function loadExpiriesAndConfig() {
+            try {
+                // 1. Fetch Available Expiries
+                const expResp = await fetch('/api/expiries');
+                const expiries = await expResp.json();
+
+                // Populate NIFTY
+                if (expiries.NIFTY) {
+                    niftyExpirySelect.innerHTML = '<option value="AUTO">Nifty: Auto</option>';
+                    expiries.NIFTY.forEach(date => {
+                        const opt = document.createElement('option');
+                        opt.value = date;
+                        opt.innerText = `Nifty: ${date}`;
+                        niftyExpirySelect.appendChild(opt);
+                    });
+                }
+
+                // Populate BANKNIFTY
+                if (expiries.BANKNIFTY) {
+                    bankniftyExpirySelect.innerHTML = '<option value="AUTO">BankNifty: Auto</option>';
+                    expiries.BANKNIFTY.forEach(date => {
+                        const opt = document.createElement('option');
+                        opt.value = date;
+                        opt.innerText = `BankNifty: ${date}`;
+                        bankniftyExpirySelect.appendChild(opt);
+                    });
+                }
+
+                // 2. Fetch Current Config
+                const cfgResp = await fetch('/api/trading_config');
+                const config = await cfgResp.json();
+
+                if (config.NIFTY_EXPIRY) niftyExpirySelect.value = config.NIFTY_EXPIRY;
+                if (config.BANKNIFTY_EXPIRY) bankniftyExpirySelect.value = config.BANKNIFTY_EXPIRY;
+
+            } catch (error) {
+                console.error("Error loading expiries/config:", error);
+            }
+        }
+
+        async function updateExpiryConfig() {
+            const payload = {
+                "NIFTY_EXPIRY": niftyExpirySelect.value,
+                "BANKNIFTY_EXPIRY": bankniftyExpirySelect.value
+            };
+            try {
+                await fetch('/api/trading_config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                console.error("Error saving expiry config:", error);
+            }
+        }
+
+        niftyExpirySelect.addEventListener('change', updateExpiryConfig);
+        bankniftyExpirySelect.addEventListener('change', updateExpiryConfig);
+
+        loadExpiriesAndConfig();
+        // Refresh expiries periodically
+        setInterval(loadExpiriesAndConfig, 60000);
+
+
+        setInterval(loadExpiriesAndConfig, 60000);
+
+        // Credentials Logic
+        // VARS REPLACED
+        const credsToggleBtn = document.getElementById('creds-toggle-btn');
+        const credsPanel = document.getElementById('creds-panel');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const accessTokenInput = document.getElementById('access-token-input');
+        const apiSecretInput = document.getElementById('api-secret-input');
+        const saveCredsBtn = document.getElementById('save-creds-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const credsStatus = document.getElementById('creds-status');
+
+        credsToggleBtn.addEventListener('click', () => {
+            if (credsPanel.style.display === 'none') {
+                credsPanel.style.display = 'block';
+                credsToggleBtn.innerText = 'Manage Credentials ▲';
+                fetchCredentials();
+            } else {
+                credsPanel.style.display = 'none';
+                credsToggleBtn.innerText = 'Manage Credentials ▼';
+            }
+        });
+
+        async function fetchCredentials() {
+            try {
+                const response = await fetch('/api/credentials');
+                const data = await response.json();
+                if (data.is_set) {
+                    apiKeyInput.value = data.api_key; // Masked
+                    accessTokenInput.value = data.access_token; // Masked
+                    accessTokenInput.type = "password";
+                }
+            } catch (error) {
+                console.error("Error fetching credentials:", error);
+            }
+        }
+
+        // Login with Zerodha Logic
+        if (loginBtn) {
+            loginBtn.addEventListener('click', async () => {
+                const apiKey = apiKeyInput.value;
+                const apiSecret = apiSecretInput.value;
+
+                if (!apiKey || !apiSecret) {
+                    credsStatus.innerText = "API Key & Secret required.";
+                    credsStatus.style.color = "red";
+                    return;
+                }
+
+                credsStatus.innerText = "Saving Secret...";
+                try {
+                    await fetch('/api/credentials', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ api_key: apiKey, api_secret: apiSecret, access_token: accessTokenInput.value })
+                    });
+
+                    credsStatus.innerText = "Opening Login...";
+                    const response = await fetch('/api/login');
+                    const data = await response.json();
+
+                    if (data.login_url) {
+                        window.open(data.login_url, "ZerodhaLogin", "width=600,height=700");
+                        credsStatus.innerText = "Waiting for Login...";
+                        credsStatus.style.color = "yellow";
+                    } else {
+                        credsStatus.innerText = "Error getting URL.";
+                        credsStatus.style.color = "red";
+                    }
+                } catch (e) {
+                    credsStatus.innerText = "Conn Error";
+                }
+            });
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.data === 'zerodha_login_success') {
+                credsStatus.innerText = "Login Success! Token Saved.";
+                credsStatus.style.color = "#22c55e";
+                setTimeout(() => fetchCredentials(), 1000);
+            }
+        });
+
+        // Manual Save Button
+        if (saveCredsBtn) {
+            saveCredsBtn.addEventListener('click', async () => {
+                const apiKey = apiKeyInput.value;
+                const token = accessTokenInput.value;
+                const secret = apiSecretInput.value;
+
+                if (!apiKey) {
+                    credsStatus.innerText = "API Key required.";
+                    credsStatus.style.color = "red";
+                    return;
+                }
+
+                if ((apiKey.includes("****") || (token && token.includes("****")))) {
+                    if (!confirm("You have masked credentials. Saving will overwrite them. Continue?")) {
+                        return;
+                    }
+                }
+
+                credsStatus.innerText = "Saving...";
+                credsStatus.style.color = "yellow";
+
+                try {
+                    const response = await fetch('/api/credentials', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ api_key: apiKey, access_token: token, api_secret: secret })
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        credsStatus.innerText = "Saved!";
+                        credsStatus.style.color = "#22c55e";
+                        setTimeout(() => { credsStatus.innerText = ""; }, 3000);
+                    } else {
+                        credsStatus.innerText = "Error: " + result.error;
+                        credsStatus.style.color = "red";
+                    }
+                } catch (error) {
+                    credsStatus.innerText = "Connection Error";
+                    credsStatus.style.color = "red";
+                }
+            });
+        }
+
+
+
+        // Summary Elements
+
+        let timestamps = [];
+        let currentData = [];
+        let pollingInterval = null;
+        let niftyOIChartInstance = null;
+        let niftyOIChangeChartInstance = null;
+        let niftyMaxPainChartInstance = null;
+        let bankNiftyOIChartInstance = null;
+        let bankNiftyOIChangeChartInstance = null;
+        let bankNiftyMaxPainChartInstance = null;
+        let chartsInterval = null;
+
+        // --- Core Logic ---
+
+        // Fetch Spots
+        async function fetchSpots() {
+            try {
+                const response = await fetch('/api/spots');
+                const data = await response.json();
+
+                const niftyVal = document.getElementById('nifty-spot-val');
+                const bankVal = document.getElementById('banknifty-spot-val');
+                const lastUpdatedVal = document.getElementById('last-updated-val');
+
+                if (niftyVal) niftyVal.textContent = data.NIFTY.price;
+                if (bankVal) bankVal.textContent = data.BANKNIFTY.price;
+
+                // Update timestamp (use NIFTY's timestamp as reference)
+                if (lastUpdatedVal && data.NIFTY.timestamp) {
+                    lastUpdatedVal.textContent = data.NIFTY.timestamp;
+
+                    // Check for stale data (older than 5 mins)
+                    const now = new Date();
+                    const [h, m, s] = data.NIFTY.timestamp.split(':').map(Number);
+                    const updateTime = new Date();
+                    updateTime.setHours(h, m, s);
+
+                    const diffMs = now - updateTime;
+                    const diffMins = diffMs / 1000 / 60;
+
+                    if (diffMins > 5) {
+                        lastUpdatedVal.style.color = '#ef4444'; // Red
+                        lastUpdatedVal.textContent += " (Stale)";
+                    } else {
+                        lastUpdatedVal.style.color = '#22c55e'; // Green
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error fetching spots:', error);
+            }
+        }
+
+        async function fetchDates() {
+            try {
+                const response = await fetch('/api/dates');
+                const dates = await response.json();
+
+                dateSelect.innerHTML = '';
+
+                if (dates.length === 0) {
+                    const option = document.createElement('option');
+                    option.text = "No Data Found";
+                    dateSelect.add(option);
+                    return;
+                }
+
+                dates.forEach(date => {
+                    const option = document.createElement('option');
+                    option.value = date;
+                    option.text = date;
+                    dateSelect.add(option);
+                });
+
+                // Select the first (latest) date by default
+                dateSelect.value = dates[0];
+                fetchTimestamps(true);
+
+            } catch (error) {
+                console.error('Error fetching dates:', error);
+            }
+        }
+
+        async function fetchTimestamps(auto = false) {
+            const symbol = symbolSelect.value;
+            const date = dateSelect.value;
+
+            if (!date) return;
+
+            try {
+                const response = await fetch(`/api/timestamps?symbol=${symbol}&date=${date}`);
+                const newTimestamps = await response.json();
+
+                // Always update timestamps
+                timestamps = newTimestamps;
+
+                if (timestamps.length > 0) {
+                    timeSlider.disabled = false;
+                    timeSlider.max = timestamps.length - 1;
+
+                    // If auto-updating (interval or toggle) OR first load
+                    // Force jump to latest
+                    if (auto) {
+                        timeSlider.value = timestamps.length - 1;
+                        updateTimeDisplay();
+                        fetchData();
+                    }
+                } else {
+                    handleNoData();
+                }
+            } catch (error) {
+                console.error('Error fetching timestamps:', error);
+            }
+        }
+
+        // Helper to parse time string "HH:MM:SS" to minutes
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        // Helper to find index 5 minutes ago
+        function getPastIndex(currentIndex) {
+            if (currentIndex <= 0) return -1;
+            const currentTimeStr = timestamps[currentIndex];
+            const currentMinutes = timeToMinutes(currentTimeStr);
+            const targetMinutes = currentMinutes - 5;
+
+            // Iterate backwards to find closest timestamp <= targetMinutes
+            for (let i = currentIndex - 1; i >= 0; i--) {
+                const tMinutes = timeToMinutes(timestamps[i]);
+                if (tMinutes <= targetMinutes) {
+                    return i;
+                }
+            }
+            return 0; // Fallback to start if not enough data
+        }
+
+        async function fetchData() {
+            const symbol = symbolSelect.value;
+            const date = dateSelect.value;
+            const index = parseInt(timeSlider.value);
+            const timestamp = timestamps[index];
+
+            if (!timestamp) return;
+
+            try {
+                // Prepare Promises: Current Data + Signals
+                const promises = [
+                    fetch(`/api/data?symbol=${symbol}&timestamp=${timestamp}&date=${date}`).then(res => res.json()),
+                    fetch(`/api/signals?timestamp=${timestamp}&date=${date}`).then(res => res.json())
+                ];
+
+                // Add Past Data Promise if needed
+                const pastIndex = getPastIndex(index);
+                let hasPastData = false;
+
+                if (pastIndex !== -1 && pastIndex !== index) {
+                    const pastTimestamp = timestamps[pastIndex];
+                    promises.push(fetch(`/api/data?symbol=${symbol}&timestamp=${pastTimestamp}&date=${date}`).then(res => res.json()));
+                    hasPastData = true;
+                }
+
+                // Execute Parallel Fetch
+                const results = await Promise.all(promises);
+
+                const current = results[0];
+                const signals = results[1];
+                const past = hasPastData ? results[2] : [];
+
+                if (current.error) {
+                    console.error("Data Error:", current.error);
+                    // optionally handleNoData();
+                } else {
+                    currentData = current;
+                    renderTable(past);
+                }
+
+                processSignals(signals);
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function processSignals(data) {
+            if (!data || data.error) return;
+
+            const updateBox = (symbol, elementId, boxId, spotId) => {
+                if (!data[symbol]) return;
+
+                const el = document.getElementById(elementId);
+                const box = document.getElementById(boxId);
+                const spotEl = document.getElementById(spotId);
+
+                const info = data[symbol]; // { signal, color, spot, atm, spot }
+
+                // Update Signal Text
+                el.textContent = info.signal;
+                el.className = "signal-value"; // Reset classes
+
+                if (info.color === 'red') {
+                    el.classList.add('flash-red');
+                    el.style.textShadow = "0 0 10px red";
+                    el.style.color = "red";
+                } else if (info.color === 'green') {
+                    el.classList.add('flash-green');
+                    el.style.textShadow = "0 0 10px lime";
+                    el.style.color = "#4ade80";
+                } else if (info.color === 'orange') {
+                    el.style.color = "orange";
+                } else {
+                    el.style.color = "#94a3b8";
+                }
+
+                // Update Spot Price in Header
+                if (spotEl && info.spot) {
+                    spotEl.textContent = info.spot.toFixed(2);
+                }
+            };
+
+            updateBox('NIFTY', 'nifty-signal-val', 'nifty-signal-box', 'nifty-spot-val');
+            updateBox('BANKNIFTY', 'banknifty-signal-val', 'banknifty-signal-box', 'banknifty-spot-val');
+
+            // Update "Last Updated"
+            const lastUpdatedVal = document.getElementById('last-updated-val');
+            const index = parseInt(timeSlider.value);
+            const ts = timestamps[index];
+            if (lastUpdatedVal && ts) {
+                const timePart = ts.split(' ')[1];
+                lastUpdatedVal.textContent = timePart;
+                lastUpdatedVal.style.color = '#text-secondary';
+            }
+        }
+
+
+
+        function getATMIndex(data) {
+            if (!data || data.length === 0) return -1;
+
+            // Use underlying_price if available
+            const underlyingPrice = data[0].underlying_price;
+
+            if (underlyingPrice) {
+                // Update UI with Spot Price
+                const spotDisplay = document.getElementById('spot-price-display');
+                if (spotDisplay) spotDisplay.textContent = `Spot: ${underlyingPrice.toFixed(2)}`;
+
+                let minDiff = Infinity;
+                let atmIndex = -1;
+
+                data.forEach((row, index) => {
+                    const diff = Math.abs(row.strike_price - underlyingPrice);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        atmIndex = index;
+                    }
+                });
+                return atmIndex;
+            }
+
+            // Fallback to heuristic
+            let minDiff = Infinity;
+            let atmIndex = -1;
+
+            const validRows = data.map((row, index) => ({
+                ...row,
+                originalIndex: index
+            })).filter(row => (row.ce.last_price + row.pe.last_price) > 5);
+
+            if (validRows.length === 0) return Math.floor(data.length / 2);
+
+            validRows.forEach(row => {
+                const diff = Math.abs(row.ce.last_price - row.pe.last_price);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    atmIndex = row.originalIndex;
+                }
+            });
+
+            return atmIndex;
+        }
+
+
+        // Live Monitor Logic
+        async function updateMonitor() {
+            await Promise.all([
+                fetchLatestSummary('NIFTY'),
+                fetchLatestSummary('BANKNIFTY')
+            ]);
+        }
+
+        async function fetchLatestSummary(symbol) {
+            try {
+                let date = dateSelect.value;
+                if (!date || date === 'Loading...' || date === 'No Data Found') {
+                    turn;
+                }
+
+                const response = await fetch(`/api/timestamps?symbol=${symbol}&date=${date}`);
+                const timestamps = await response.json();
+                if (timestamps.length > 0) {
+                    const latestTimestamp = timestamps[timestamps.length - 1];
+                    const dataResp = await fetch(`/api/data?symbol=${symbol}&timestamp=${latestTimestamp}&date=${date}`);
+                    const data = await dataResp.json();
+                    const metrics = calculateMonitorMetrics(data);
+                    updateMonitorUI(symbol, metrics);
+                }
+            } catch (error) {
+                console.error(`Error updating monitor for ${symbol}:`, error);
+            }
+        }
+
+        function calculateMonitorMetrics(data) {
+            let totalCeOi = 0;
+            let totalPeOi = 0;
+            let totalCeOiChg = 0;
+            let totalPeOiChg = 0;
+
+            data.forEach(row => {
+                totalCeOi += row.ce.oi || 0;
+                totalPeOi += row.pe.oi || 0;
+                totalCeOiChg += row.ce.change_oi || 0;
+                totalPeOiChg += row.pe.change_oi || 0;
+            });
+
+            const pcr = totalCeOi > 0 ? (totalPeOi / totalCeOi).toFixed(2) : 0;
+            const maxPain = calculateMaxPain(data);
+
+            return {
+                ceOi: totalCeOi,
+                peOi: totalPeOi,
+                pcr: pcr,
+                ceOiChg: totalCeOiChg,
+                peOiChg: totalPeOiChg,
+                maxPain: maxPain
+            };
+        }
+
+        function updateMonitorUI(symbol, metrics) {
+            const prefix = symbol.toLowerCase();
+            const ceOiEl = document.getElementById(`${prefix}-ce-oi`);
+            const peOiEl = document.getElementById(`${prefix}-pe-oi`);
+            const pcrEl = document.getElementById(`${prefix}-pcr`);
+            const ceChgEl = document.getElementById(`${prefix}-ce-chg`);
+            const peChgEl = document.getElementById(`${prefix}-pe-chg`);
+            const maxPainEl = document.getElementById(`${prefix}-max-pain`);
+
+            // Update Values
+            if (ceOiEl) ceOiEl.textContent = formatNumber(metrics.ceOi);
+            if (peOiEl) peOiEl.textContent = formatNumber(metrics.peOi);
+            if (pcrEl) pcrEl.textContent = metrics.pcr;
+            if (ceChgEl) ceChgEl.textContent = formatNumber(metrics.ceOiChg);
+            if (peChgEl) peChgEl.textContent = formatNumber(metrics.peOiChg);
+            if (maxPainEl) maxPainEl.textContent = formatNumber(metrics.maxPain);
+
+            // Highlight Logic: Higher = Green, Lower = Red
+            // Compare OI
+            if (ceOiEl && peOiEl) {
+                if (metrics.ceOi > metrics.peOi) {
+                    ceOiEl.style.color = 'var(--call-text)';
+                    peOiEl.style.color = 'var(--put-text)';
+                } else if (metrics.peOi > metrics.ceOi) {
+                    ceOiEl.style.color = 'var(--put-text)';
+                    peOiEl.style.color = 'var(--call-text)';
+                } else {
+                    ceOiEl.style.color = '';
+                    peOiEl.style.color = '';
+                }
+            }
+
+            // Compare OI Change
+            if (ceChgEl && peChgEl) {
+                if (metrics.ceOiChg > metrics.peOiChg) {
+                    ceChgEl.style.color = 'var(--call-text)';
+                    peChgEl.style.color = 'var(--put-text)';
+                } else if (metrics.peOiChg > metrics.ceOiChg) {
+                    ceChgEl.style.color = 'var(--put-text)';
+                    peChgEl.style.color = 'var(--call-text)';
+                } else {
+                    ceChgEl.style.color = '';
+                    peChgEl.style.color = '';
+                }
+            }
+        }
+
+        // Start Monitor Polling
+        setInterval(updateMonitor, 60000); // Every minute
+        setTimeout(updateMonitor, 2000);
+
+        function calculateMaxPain(data) {
+            if (!data || data.length === 0) return 0;
+
+            let minTotalLoss = Infinity;
+            let maxPainStrike = 0;
+
+            // Iterate through each strike as a potential expiry price
+            data.forEach(potentialExpiry => {
+                const expiryPrice = potentialExpiry.strike_price;
+                let totalLoss = 0;
+
+                // Calculate total loss for option writers at this expiry price
+                data.forEach(row => {
+                    const strike = row.strike_price;
+                    const callOi = row.ce.oi || 0;
+                    const putOi = row.pe.oi || 0;
+
+                    // Loss on Calls: if expiry > strike, writers lose (expiry - strike) * OI
+                    if (expiryPrice > strike) {
+                        totalLoss += (expiryPrice - strike) * callOi;
+                    }
+
+                    // Loss on Puts: if expiry < strike, writers lose (strike - expiry) * OI
+                    if (expiryPrice < strike) {
+                        totalLoss += (strike - expiryPrice) * putOi;
+                    }
+                });
+
+                if (totalLoss < minTotalLoss) {
+                    minTotalLoss = totalLoss;
+                    maxPainStrike = expiryPrice;
+                }
+            });
+
+            return maxPainStrike;
+        }
+
+        function formatNumber(num) {
+            if (num === undefined || num === null) return '-';
+            return num.toLocaleString('en-IN');
+        }
+
+        function getTrendClass(priceChange, oiChange) {
+            if (priceChange > 0 && oiChange > 0) return 'signal-long-buildup';
+            if (priceChange < 0 && oiChange > 0) return 'signal-short-buildup';
+            if (priceChange < 0 && oiChange < 0) return 'signal-long-unwinding';
+            if (priceChange > 0 && oiChange < 0) return 'signal-short-covering';
+            return '';
+        }
+
+
+
+
+
+        function renderTable(pastData = []) {
+            const rangeVal = strikeRangeSelect.value;
+            let dataToShow = currentData;
+            let atmIndex = getATMIndex(currentData);
+
+            // Create Map for Past Data for O(1) lookup
+            const pastDataMap = new Map();
+            if (pastData.length > 0) {
+                pastData.forEach(row => pastDataMap.set(row.strike_price, row));
+            }
+
+            if (rangeVal !== 'all' && atmIndex !== -1) {
+                const range = parseInt(rangeVal);
+                const start = Math.max(0, atmIndex - range);
+                const end = Math.min(currentData.length, atmIndex + range + 1);
+                dataToShow = currentData.slice(start, end);
+                // Adjust ATM index relative to sliced data
+                // atmIndex is the index in the original array.
+                // We don't really need the relative index for highlighting if we check strike price or original index.
+                // But let's keep it simple.
+            }
+
+            tableBody.innerHTML = '';
+
+            dataToShow.forEach((row, index) => {
+                const isATM = row.strike_price === currentData[atmIndex]?.strike_price;
+                const tr = document.createElement('tr');
+                if (isATM) tr.classList.add('atm-row');
+
+                // Helper for signal logic (simplified for now)
+                const ceTrend = row.ce.change >= 0 ? 'color: #4ade80' : 'color: #f87171';
+                const peTrend = row.pe.change >= 0 ? 'color: #4ade80' : 'color: #f87171';
+
+                tr.innerHTML = `
+                    <td style="color: var(--text-primary)">${formatNumber(row.ce.oi)}</td>
+                    <td style="color: var(--text-primary)">${formatNumber(row.ce.change_oi)}</td>
+                    <td style="color: var(--text-primary)">${formatNumber(row.ce.volume)}</td>
+                    <td style="color: var(--text-primary)">${row.ce.iv.toFixed(2)}</td>
+                    <td style="${ceTrend}">${row.ce.last_price.toFixed(2)}</td>
+                    <td style="${ceTrend}">${row.ce.change.toFixed(2)}</td>
+                    
+                    <td class="strike-col">${row.strike_price}</td>
+                    
+                    <td style="${peTrend}">${row.pe.last_price.toFixed(2)}</td>
+                    <td style="${peTrend}">${row.pe.change.toFixed(2)}</td>
+                    <td style="color: var(--text-primary)">${formatNumber(row.pe.volume)}</td>
+                    <td style="color: var(--text-primary)">${row.pe.iv.toFixed(2)}</td>
+                    <td style="color: var(--text-primary)">${formatNumber(row.pe.oi)}</td>
+                    <td style="color: var(--text-primary)">${formatNumber(row.pe.change_oi)}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function updateTimeDisplay() {
+            const index = timeSlider.value;
+            if (timestamps[index]) {
+                timeDisplay.textContent = timestamps[index];
+            }
+        }
+
+        function handleNoData() {
+            timeSlider.disabled = true;
+            timeDisplay.textContent = "No Data";
+            tableBody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 2rem;">No data available</td></tr>';
+        }
+
+        function toggleAutoUpdate() {
+            if (autoUpdateCheck.checked) {
+                liveDot.classList.add('active');
+                fetchTimestamps(true); // Immediate update
+                fetchSpots();
+
+                // Poll every 60 seconds
+                pollingInterval = setInterval(() => {
+                    fetchTimestamps(true);
+                    fetchSpots();
+
+                    // Update active view data
+                    if (currentView === 'charts') {
+                        fetchChartData();
+                    }
+                }, 60000);
+            } else {
+                liveDot.classList.remove('active');
+                if (pollingInterval) clearInterval(pollingInterval);
+            }
+        }
+
+        // --- Event Listeners ---
+
+        dateSelect.addEventListener('change', () => {
+            timestamps = [];
+            timeSlider.value = 0;
+            timeSlider.disabled = true;
+            fetchTimestamps(true);
+        });
+
+        symbolSelect.addEventListener('change', () => fetchTimestamps(true));
+
+        strikeRangeSelect.addEventListener('change', () => renderTable());
+
+        autoUpdateCheck.addEventListener('change', toggleAutoUpdate);
+
+        timeSlider.addEventListener('input', () => {
+            updateTimeDisplay();
+        });
+
+        timeSlider.addEventListener('change', fetchData);
+
+        refreshBtn.addEventListener('click', () => fetchTimestamps(true));
+
+
+
+        async function fetchChartData() {
+            const symbol = symbolSelect.value;
+            const date = dateSelect.value;
+
+            try {
+                // Fetch Data for BOTH symbols (for Max Pain comparison)
+                // And specifically for the selected symbol (for OI charts)
+                const [selectedDataResp, niftyResp, bankNiftyResp] = await Promise.all([
+                    fetch(`/api/oi_stats?symbol=${symbol}&date=${date}`),
+                    fetch(`/api/oi_stats?symbol=NIFTY&date=${date}`),
+                    fetch(`/api/oi_stats?symbol=BANKNIFTY&date=${date}`)
+                ]);
+
+                const selectedData = await selectedDataResp.json();
+                const niftyData = await niftyResp.json();
+                const bankNiftyData = await bankNiftyResp.json();
+
+                renderCharts(selectedData, niftyData, bankNiftyData);
+            } catch (error) {
+                console.error('Error fetching chart data:', error);
+            }
+        }
+
+        function renderCharts(selectedData, niftyData, bankNiftyData) {
+            // Function to process data
+            const processData = (data) => {
+                const filtered = data.filter(d => d.timestamp >= "09:00" && d.timestamp <= "15:30");
+                return {
+                    labels: filtered.map(d => d.timestamp),
+                    ceOI: filtered.map(d => d.ce_oi),
+                    peOI: filtered.map(d => d.pe_oi),
+                    ceChange: filtered.map(d => d.ce_change_oi),
+                    peChange: filtered.map(d => d.pe_change_oi),
+                    spotPrices: filtered.map(d => d.spot),
+                    maxPain: filtered.map(d => d.max_pain)
+                };
+            };
+
+            const niftyProcessed = processData(niftyData);
+            const bankNiftyProcessed = processData(bankNiftyData);
+
+            // Destroy existing charts
+            if (niftyOIChartInstance) niftyOIChartInstance.destroy();
+            if (niftyOIChangeChartInstance) niftyOIChangeChartInstance.destroy();
+            if (niftyMaxPainChartInstance) niftyMaxPainChartInstance.destroy();
+
+            if (bankNiftyOIChartInstance) bankNiftyOIChartInstance.destroy();
+            if (bankNiftyOIChangeChartInstance) bankNiftyOIChangeChartInstance.destroy();
+            if (bankNiftyMaxPainChartInstance) bankNiftyMaxPainChartInstance.destroy();
+
+            // --- NIFTY ROW ---
+
+            // 1. NIFTY Total OI
+            const nOCtx = document.getElementById('niftyOIChart').getContext('2d');
+            niftyOIChartInstance = new Chart(nOCtx, {
+                type: 'line',
+                data: {
+                    labels: niftyProcessed.labels,
+                    datasets: [{
+                        label: 'Total Call OI',
+                        data: niftyProcessed.ceOI,
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Total Put OI',
+                        data: niftyProcessed.peOI,
+                        borderColor: '#f87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Spot Price',
+                        data: niftyProcessed.spotPrices,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false, // Critical for grid sizing
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'NIFTY: Total Open Interest', color: '#fff', font: { size: 12 } },
+                        legend: {
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } } // Smaller legend
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' }, title: { display: true, text: 'OI', color: '#94a3b8', font: { size: 10 } } },
+                        y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#3b82f6', font: { size: 10 } }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Spot', color: '#3b82f6', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 2. NIFTY OI Change
+            const nOCCtx = document.getElementById('niftyOIChangeChart').getContext('2d');
+            niftyOIChangeChartInstance = new Chart(nOCCtx, {
+                type: 'line',
+                data: {
+                    labels: niftyProcessed.labels,
+                    datasets: [{
+                        label: 'Call OI Change',
+                        data: niftyProcessed.ceChange,
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Put OI Change',
+                        data: niftyProcessed.peChange,
+                        borderColor: '#f87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Spot Price',
+                        data: niftyProcessed.spotPrices,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'NIFTY: Change in OI', color: '#fff', font: { size: 12 } },
+                        legend: {
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' }, title: { display: true, text: 'OI Change', color: '#94a3b8', font: { size: 10 } } },
+                        y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#3b82f6', font: { size: 10 } }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Spot', color: '#3b82f6', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 3. NIFTY Max Pain
+            const nMCtx = document.getElementById('niftyMaxPainChart').getContext('2d');
+            niftyMaxPainChartInstance = new Chart(nMCtx, {
+                type: 'line',
+                data: {
+                    labels: niftyProcessed.labels,
+                    datasets: [{
+                        label: 'Max Pain',
+                        data: niftyProcessed.maxPain,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.1,
+                        stepped: true,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Spot Price',
+                        data: niftyProcessed.spotPrices,
+                        borderColor: '#fbbf24',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'NIFTY: Max Pain', color: '#fff', font: { size: 12 } },
+                        legend: {
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } }
+                    }
+                }
+            });
+
+            // --- BANKNIFTY ROW ---
+
+            // 4. BANKNIFTY Total OI
+            const bOCtx = document.getElementById('bankNiftyOIChart').getContext('2d');
+            bankNiftyOIChartInstance = new Chart(bOCtx, {
+                type: 'line',
+                data: {
+                    labels: bankNiftyProcessed.labels,
+                    datasets: [{
+                        label: 'Total Call OI',
+                        data: bankNiftyProcessed.ceOI,
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Total Put OI',
+                        data: bankNiftyProcessed.peOI,
+                        borderColor: '#f87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Spot Price',
+                        data: bankNiftyProcessed.spotPrices,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'BANKNIFTY: Total Open Interest', color: '#fff', font: { size: 12 } },
+                        legend: {
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' }, title: { display: true, text: 'OI', color: '#94a3b8', font: { size: 10 } } },
+                        y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#3b82f6', font: { size: 10 } }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Spot', color: '#3b82f6', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 5. BANKNIFTY OI Change
+            const bOCCtx = document.getElementById('bankNiftyOIChangeChart').getContext('2d');
+            bankNiftyOIChangeChartInstance = new Chart(bOCCtx, {
+                type: 'line',
+                data: {
+                    labels: bankNiftyProcessed.labels,
+                    datasets: [{
+                        label: 'Call OI Change',
+                        data: bankNiftyProcessed.ceChange,
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Put OI Change',
+                        data: bankNiftyProcessed.peChange,
+                        borderColor: '#f87171',
+                        backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Spot Price',
+                        data: bankNiftyProcessed.spotPrices,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'BANKNIFTY: Change in OI', color: '#fff', font: { size: 12 } },
+                        legend: {
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' }, title: { display: true, text: 'OI Change', color: '#94a3b8', font: { size: 10 } } },
+                        y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#3b82f6', font: { size: 10 } }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Spot', color: '#3b82f6', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 6. BANKNIFTY Max Pain
+            const bMCtx = document.getElementById('bankNiftyMaxPainChart').getContext('2d');
+            bankNiftyMaxPainChartInstance = new Chart(bMCtx, {
+                type: 'line',
+                data: {
+                    labels: bankNiftyProcessed.labels,
+                    datasets: [{
+                        label: 'Max Pain',
+                        data: bankNiftyProcessed.maxPain,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.1,
+                        stepped: true,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Spot Price',
+                        data: bankNiftyProcessed.spotPrices,
+                        borderColor: '#fbbf24',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'BANKNIFTY: Max Pain', color: '#fff', font: { size: 12 } },
+                        legend: {
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } }
+                    }
+                }
+            });
+
+            // Helper to format numbers (e.g., 1.2M, 500K)
+            const formatNumber = (num) => {
+                if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+                if (Math.abs(num) >= 1000) return (num / 1000).toFixed(2) + 'K';
+                return num.toString();
+            };
+
+            // Update Metrics Helper (Using Processed Data)
+            const updateMetricsFromProcessed = (processed, prefix) => {
+                if (processed && processed.labels.length > 0) {
+                    const lastIdx = processed.labels.length - 1;
+                    const ce = processed.ceOI[lastIdx];
+                    const pe = processed.peOI[lastIdx];
+
+                    const pcr = ce > 0 ? (pe / ce).toFixed(2) : "-";
+
+                    const pcrEl = document.getElementById(`${prefix}-pcr`);
+                    const coiEl = document.getElementById(`${prefix}-coi`);
+                    const poiEl = document.getElementById(`${prefix}-poi`);
+                    const updatedEl = document.getElementById(`${prefix}-updated`);
+
+                    if (pcrEl) {
+                        pcrEl.textContent = pcr;
+                        if (pcr > 1) pcrEl.style.color = '#22c55e'; // Bullish
+                        else if (pcr < 0.7) pcrEl.style.color = '#ef4444'; // Bearish
+                        else pcrEl.style.color = 'var(--text-primary)';
+                    }
+                    if (coiEl) coiEl.textContent = formatNumber(ce);
+                    if (poiEl) poiEl.textContent = formatNumber(pe);
+                    if (updatedEl) updatedEl.textContent = processed.labels[lastIdx];
+                }
+            };
+
+            // Calculate and display metrics using the same data as the charts
+            updateMetricsFromProcessed(niftyProcessed, 'nifty');
+            updateMetricsFromProcessed(bankNiftyProcessed, 'banknifty');
+        }
+
+        // --- Init ---
+        fetchDates();
+        fetchSpots(); // Fetch immediately once
+        toggleAutoUpdate();
+    </script>
+</body>
+
+</html>

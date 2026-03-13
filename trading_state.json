@@ -1,0 +1,30 @@
+{
+    "trading_enabled": true,
+    "positions": {
+        "NIFTY": {
+            "type": "CE",
+            "strike": 23850.0,
+            "trading_symbol": "PAPER_NIFTY_23850.0_CE",
+            "entry_price": 304.9,
+            "quantity": 50,
+            "highest_profit": 0,
+            "current_profit": 0.0,
+            "timestamp": "2026-03-12 01:19:50"
+        },
+        "BANKNIFTY": {
+            "type": "CE",
+            "strike": 55600.0,
+            "trading_symbol": "PAPER_BANKNIFTY_55600.0_CE",
+            "entry_price": 1347.9,
+            "quantity": 15,
+            "highest_profit": 0,
+            "current_profit": 0.0,
+            "timestamp": "2026-03-12 01:19:50"
+        }
+    },
+    "config": {
+        "NIFTY_EXPIRY": null,
+        "BANKNIFTY_EXPIRY": null
+    },
+    "paper_trading": true
+}
