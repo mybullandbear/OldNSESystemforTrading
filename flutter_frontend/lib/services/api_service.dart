@@ -1,9 +1,16 @@
+import 'dart:html' as html;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/option_data.dart';
 
 class ApiService {
-  static const String _base = 'http://127.0.0.1:5000/api';
+  static String get _base {
+    final host = html.window.location.hostname;
+    if (host != null && host.isNotEmpty) {
+      return 'http://$host:5000/api';
+    }
+    return 'http://127.0.0.1:5000/api';
+  }
   static const _fast = Duration(seconds: 60);
   static const _slow = Duration(seconds: 120);
 
