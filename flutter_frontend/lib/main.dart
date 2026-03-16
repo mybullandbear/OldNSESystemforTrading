@@ -700,9 +700,9 @@ class _StatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-    _chip('CE OI', NumberFormat.compact().format(summary.ceOi), kRed),
+    _chip('CE OI', NumberFormat.compact().format(summary.ceOi), kGreen),
     const SizedBox(width: 8),
-    _chip('PE OI', NumberFormat.compact().format(summary.peOi), kGreen),
+    _chip('PE OI', NumberFormat.compact().format(summary.peOi), kRed),
     const SizedBox(width: 8),
     _chip('PCR', summary.pcr.toStringAsFixed(2), summary.pcr >= 1 ? kGreen : kRed),
   ]);
@@ -766,7 +766,7 @@ class _OiLineChart extends StatelessWidget {
     }
 
     return _ChartCard(
-      title: 'TOTAL OPEN INTEREST & SPOT PRICE  🔴 CE  🟢 PE  ⚪ Spot',
+      title: 'TOTAL OPEN INTEREST & SPOT PRICE  🟢 CE  🔴 PE  ⚪ Spot',
       icon: Icons.show_chart_rounded, height: 160,
       child: LineChart(
         duration: Duration.zero,
@@ -794,8 +794,8 @@ class _OiLineChart extends StatelessWidget {
             )),
           ),
           lineBarsData: [
-            LineChartBarData(spots: ceSpots, isCurved: true, color: kRed, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kRed.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
-            LineChartBarData(spots: peSpots, isCurved: true, color: kGreen, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kGreen.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: ceSpots, isCurved: true, color: kGreen, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kGreen.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: peSpots, isCurved: true, color: kRed, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kRed.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
             LineChartBarData(spots: spotSpots, isCurved: true, color: Colors.white70, dashArray: [4, 4], barWidth: 1.5, dotData: const FlDotData(show: false)),
           ],
           lineTouchData: LineTouchData(touchTooltipData: LineTouchTooltipData(
@@ -919,7 +919,7 @@ class _ChangeOiLineChart extends StatelessWidget {
     }
 
     return _ChartCard(
-      title: 'CHANGE IN OI & SPOT PRICE  🔴 CE  🟢 PE  ⚪ Spot',
+      title: 'CHANGE IN OI & SPOT PRICE  🟢 CE  🔴 PE  ⚪ Spot',
       icon: Icons.show_chart_rounded, height: 160,
       child: LineChart(
         duration: Duration.zero,
@@ -947,8 +947,8 @@ class _ChangeOiLineChart extends StatelessWidget {
             )),
           ),
           lineBarsData: [
-            LineChartBarData(spots: ceSpots, isCurved: true, color: kRed, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kRed.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
-            LineChartBarData(spots: peSpots, isCurved: true, color: kGreen, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kGreen.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: ceSpots, isCurved: true, color: kGreen, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kGreen.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: peSpots, isCurved: true, color: kRed, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kRed.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
             LineChartBarData(spots: spotSpots, isCurved: true, color: Colors.white70, dashArray: [4, 4], barWidth: 1.5, dotData: const FlDotData(show: false)),
           ],
           lineTouchData: LineTouchData(touchTooltipData: LineTouchTooltipData(
