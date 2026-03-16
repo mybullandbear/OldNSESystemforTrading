@@ -1,0 +1,5 @@
+# Instructions: Paste the direct JSON data link for each index after the equals sign.
+# The bot will use these to initialize and then automatically find Tuesday expiries.
+
+NIFTY=https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=18-Mar-2026
+BANKNIFTY=https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol=BANKNIFTY&expiry=30-Mar-2026
