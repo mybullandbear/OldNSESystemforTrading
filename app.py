@@ -459,8 +459,8 @@ def calculate_max_pain(session, symbol, timestamp):
             
             # Here 'strike_price' is the simulated expiry price
             
-            call_loss = max(0, strike_price - r.strike_price) * r.ce_oi
-            put_loss = max(0, r.strike_price - strike_price) * r.pe_oi
+            call_loss = max(0, strike_price - r.strike_price) * (r.ce_oi or 0)
+            put_loss = max(0, r.strike_price - strike_price) * (r.pe_oi or 0)
             total_loss += call_loss + put_loss
             
         if total_loss < min_loss:

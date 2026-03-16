@@ -380,12 +380,12 @@ def job(force=False):
                             sig_data = market_signals.calculate_signal(session, symbol, latest_ts, OptionChainData)
                             print(f"[{symbol}] Signal: {sig_data.get('signal')} ({sig_data.get('color')}) | Spot: {sig_data.get('spot')}")
                             
-                            current_time = datetime.now().time()
-                            start_time = datetime.strptime("09:25", "%H:%M").time()
-                            if current_time >= start_time:
-                                zerodha_trader.trader.execute_trade(sig_data, symbol, target_expiry)
-                            
-                            zerodha_trader.trader.manage_risk(symbol)
+                            # current_time = datetime.now().time()
+                            # start_time = datetime.strptime("09:25", "%H:%M").time()
+                            # if current_time >= start_time:
+                            #     zerodha_trader.trader.execute_trade(sig_data, symbol, target_expiry)
+                            # 
+                            # zerodha_trader.trader.manage_risk(symbol)
                             session.close()
                         except Exception as trade_e:
                             print(f"Trade Logic Error [{symbol}]: {trade_e}")
