@@ -711,11 +711,14 @@ class _StatRow extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        color: kSurface,
+        gradient: LinearGradient(
+          colors: [kSurface, kSurface2.withOpacity(0.5)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight
+        ),
         borderRadius: BorderRadius.circular(18), 
-        border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: color.withOpacity(0.04), blurRadius: 12, spreadRadius: 0, offset: const Offset(0, 4)),
         ]
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -791,9 +794,9 @@ class _OiLineChart extends StatelessWidget {
             )),
           ),
           lineBarsData: [
-            LineChartBarData(spots: ceSpots, isCurved: true, color: kRed, barWidth: 2, dotData: const FlDotData(show: false)),
-            LineChartBarData(spots: peSpots, isCurved: true, color: kGreen, barWidth: 2, dotData: const FlDotData(show: false)),
-            LineChartBarData(spots: spotSpots, isCurved: true, color: Colors.white70, dashArray: [4, 4], barWidth: 2, dotData: const FlDotData(show: false)),
+            LineChartBarData(spots: ceSpots, isCurved: true, color: kRed, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kRed.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: peSpots, isCurved: true, color: kGreen, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kGreen.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: spotSpots, isCurved: true, color: Colors.white70, dashArray: [4, 4], barWidth: 1.5, dotData: const FlDotData(show: false)),
           ],
           lineTouchData: LineTouchData(touchTooltipData: LineTouchTooltipData(
             getTooltipItems: (ts) {
@@ -944,9 +947,9 @@ class _ChangeOiLineChart extends StatelessWidget {
             )),
           ),
           lineBarsData: [
-            LineChartBarData(spots: ceSpots, isCurved: true, color: kRed, barWidth: 2, dotData: const FlDotData(show: false)),
-            LineChartBarData(spots: peSpots, isCurved: true, color: kGreen, barWidth: 2, dotData: const FlDotData(show: false)),
-            LineChartBarData(spots: spotSpots, isCurved: true, color: Colors.white70, dashArray: [4, 4], barWidth: 2, dotData: const FlDotData(show: false)),
+            LineChartBarData(spots: ceSpots, isCurved: true, color: kRed, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kRed.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: peSpots, isCurved: true, color: kGreen, barWidth: 2.5, dotData: const FlDotData(show: false), belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [kGreen.withOpacity(0.12), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            LineChartBarData(spots: spotSpots, isCurved: true, color: Colors.white70, dashArray: [4, 4], barWidth: 1.5, dotData: const FlDotData(show: false)),
           ],
           lineTouchData: LineTouchData(touchTooltipData: LineTouchTooltipData(
             getTooltipItems: (ts) {
@@ -1009,8 +1012,9 @@ class _DiffChart extends StatelessWidget {
           ),
           lineBarsData: [
             LineChartBarData(
-              spots: spots, isCurved: true, color: Colors.blueAccent, barWidth: 2,
+              spots: spots, isCurved: true, color: Colors.blueAccent, barWidth: 2.5,
               dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [Colors.blueAccent.withOpacity(0.15), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))
             ),
           ],
           lineTouchData: LineTouchData(touchTooltipData: LineTouchTooltipData(
@@ -1080,12 +1084,13 @@ class _MaxPainChart extends StatelessWidget {
           ),
           lineBarsData: [
             LineChartBarData(
-              spots: spotSpots, isCurved: true, color: Colors.white70, barWidth: 2,
+              spots: spotSpots, isCurved: true, color: Colors.white60, barWidth: 1.5,
               dashArray: [4, 4], dotData: const FlDotData(show: false),
             ),
             LineChartBarData(
-              spots: mpSpots, isCurved: true, color: Colors.deepPurpleAccent, barWidth: 2,
+              spots: mpSpots, isCurved: true, color: Colors.deepPurpleAccent, barWidth: 2.5,
               dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: true, gradient: LinearGradient(colors: [Colors.deepPurpleAccent.withOpacity(0.15), Colors.transparent], begin: Alignment.topCenter, end: Alignment.bottomCenter))
             ),
           ],
           lineTouchData: LineTouchData(touchTooltipData: LineTouchTooltipData(
