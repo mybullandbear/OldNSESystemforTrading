@@ -12,6 +12,18 @@ services:
       - PYTHONUNBUFFERED=1
       - TZ=Asia/Kolkata
 
+  fetcher:
+    build: .
+    command: python fetch_nse_data.py
+    volumes:
+      - ./data:/app/data
+      - ./option_chain.db:/app/option_chain.db
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Kolkata
+    depends_on:
+      - backend
+
   frontend:
     build:
       context: ./flutter_frontend
