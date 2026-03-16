@@ -323,8 +323,27 @@ def job(force=False):
             print(f"[{symbol}] Initial fetch from links.txt...", flush=True)
             initial_url = links.get(symbol)
             if not initial_url:
-                today_str = datetime.now().strftime('%d-%b-%Y')
-                initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={today_str}"
+                # Find a valid proxy expiry date to bypass the block
+                today = datetime.now()
+                valid_proxy_date = None
+                
+                print(f"[{symbol}] Finding valid proxy expiry date...", flush=True)
+                for i in range(30):
+                    d_str = (today + timedelta(days=i)).strftime('%d-%b-%Y')
+                    test_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={d_str}"
+                    # Quick test
+                    try:
+                        import requests as req
+                        r = req.get(test_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5).json()
+                        if 'records' in r and 'expiryDates' in r['records']:
+                            valid_proxy_date = d_str
+                            break
+                    except: pass
+                
+                if valid_proxy_date:
+                    initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={valid_proxy_date}"
+                else:    
+                    initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}"
             
             data = nse_fetcher.fetch_data(initial_url)
             if data:
