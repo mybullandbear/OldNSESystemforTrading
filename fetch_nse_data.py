@@ -324,18 +324,21 @@ def process_single_symbol(symbol):
                 
                 # --- NEW: Calculate Signal and Notify ---
                 try:
-                    engine = get_db_engine()
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
-                    
-                    # Convert last timestamp to datetime object
-                    last_ts_str = df.iloc[-1]['Timestamp']
-                    last_ts = datetime.strptime(last_ts_str, "%Y-%m-%d %H:%M:%S")
-                    
-                    signal_data = market_signals.calculate_signal(session, symbol, last_ts, OptionChainData)
-                    notifications.check_and_send(symbol, signal_data)
-                    
-                    session.close()
+                    if not df.empty:
+                        engine = get_db_engine()
+                        Session = sessionmaker(bind=engine)
+                        session = Session()
+                        
+                        # Convert last timestamp to datetime object
+                        last_ts_str = df.iloc[-1]['Timestamp']
+                        last_ts = datetime.strptime(last_ts_str, "%Y-%m-%d %H:%M:%S")
+                        
+                        signal_data = market_signals.calculate_signal(session, symbol, last_ts, OptionChainData)
+                        notifications.check_and_send(symbol, signal_data)
+                        
+                        session.close()
+                    else:
+                        print(f"No valid data returned for {symbol} expiry {expiry_date}, skipping signal check.")
                 except Exception as e:
                     print(f"Error in signal notification for {symbol}: {e}")
                 # ----------------------------------------
