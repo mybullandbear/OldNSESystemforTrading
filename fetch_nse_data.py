@@ -147,6 +147,16 @@ def fetch_data(symbol):
 def get_current_expiry(data):
     try:
         expiry_dates = data["records"]["expiryDates"]
+        # Make sure we select an expiry that actually has data in the 'data' array
+        valid_expiries = set()
+        for item in data["records"].get("data", []):
+            if "expiryDate" in item:
+                valid_expiries.add(item["expiryDate"])
+                
+        for exp in expiry_dates:
+            if not valid_expiries or exp in valid_expiries:
+                return exp
+                
         return expiry_dates[0]
     except (KeyError, IndexError):
         return None
