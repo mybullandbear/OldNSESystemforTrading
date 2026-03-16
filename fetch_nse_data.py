@@ -323,29 +323,31 @@ def job(force=False):
             print(f"[{symbol}] Initial fetch from links.txt...", flush=True)
             initial_url = links.get(symbol)
             if not initial_url:
-                # Find a valid proxy expiry date to bypass the block
+                initial_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
+            
+            data = nse_fetcher.fetch_data(initial_url)
+            
+            # --- Fallback: Scan future dates to pierce the WAF ---
+            if not data or "records" not in data:
+                print(f"[{symbol}] Root API returned empty data. Scanning for valid proxy expiry date...", flush=True)
                 today = datetime.now()
-                valid_proxy_date = None
+                valid_data = None
                 
-                print(f"[{symbol}] Finding valid proxy expiry date...", flush=True)
                 for i in range(30):
                     d_str = (today + timedelta(days=i)).strftime('%d-%b-%Y')
                     test_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={d_str}"
-                    # Quick test
                     try:
-                        import requests as req
-                        r = req.get(test_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5).json()
-                        if 'records' in r and 'expiryDates' in r['records']:
-                            valid_proxy_date = d_str
+                        # Use nse_fetcher to ensure headers are copied/consistent
+                        r_data = nse_fetcher.fetch_data(test_url)
+                        if r_data and 'records' in r_data and 'expiryDates' in r_data['records']:
+                            print(f"[{symbol}] Scanner found valid date: {d_str}")
+                            valid_data = r_data
                             break
                     except: pass
-                
-                if valid_proxy_date:
-                    initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={valid_proxy_date}"
-                else:    
-                    initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}"
-            
-            data = nse_fetcher.fetch_data(initial_url)
+                    
+                if valid_data:
+                    data = valid_data
+            # ----------------------------------------------------
             if data:
                 save_expiries(symbol, data)
                 all_expiries = data["records"]["expiryDates"]
