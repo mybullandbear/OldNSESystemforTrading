@@ -323,7 +323,8 @@ def job(force=False):
             print(f"[{symbol}] Initial fetch from links.txt...", flush=True)
             initial_url = links.get(symbol)
             if not initial_url:
-                initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}"
+                today_str = datetime.now().strftime('%d-%b-%Y')
+                initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={today_str}"
             
             data = nse_fetcher.fetch_data(initial_url)
             if data:
