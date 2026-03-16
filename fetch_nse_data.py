@@ -1,41 +1,30 @@
-import requests
 import schedule
 import time
 import os
 import json
 import pandas as pd
-from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, text, Index
+from datetime import datetime, timedelta, date
+import calendar
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, text
 from sqlalchemy.orm import declarative_base, sessionmaker
+from curl_cffi import requests
 import market_signals
-import notifications
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
+import zerodha_trader
 
 # --- Configuration ---
 INDICES = ["NIFTY", "BANKNIFTY"]
-INDICES = ["NIFTY", "BANKNIFTY"]
 DATA_DIR = "data"
 EXPIRIES_FILE = "expiries.json"
+LINKS_FILE = "nse_links.txt"
 
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
-
-# Constants
-OPTION_CHAIN_URL = "https://www.nseindia.com/api/option-chain-indices?symbol={}"
 
 # Database Setup
 Base = declarative_base()
 
 class OptionChainData(Base):
     __tablename__ = 'option_chain_data'
-    __table_args__ = (
-        Index('idx_symbol_timestamp', 'symbol', 'timestamp'),
-        Index('idx_expiry', 'expiry_date'),
-    )
     
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime)
@@ -94,94 +83,131 @@ def get_db_engine(date_str=None):
             
     return engine
 
-def load_links():
-    links = {}
-    try:
-        file_path = "nse_links.txt"
-        print(f"Reading links from {os.path.abspath(file_path)}", flush=True)
-        with open(file_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, value = line.split("=", 1)
-                    links[key.strip()] = value.strip()
-        print(f"Loaded links: {links}", flush=True)
-    except Exception as e:
-        print(f"Error reading nse_links.txt: {e}")
-    return links
+class NSEFetcher:
+    def __init__(self):
+        self.session = requests.Session()
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+        }
+        self.initialized = False
 
-def fetch_data(symbol):
-    """Fetches option chain data for a given symbol using direct link provided by user."""
-    links = load_links()
-    url = links.get(symbol)
-    
-    if not url:
-        print(f"No link found for {symbol} in nse_links.txt. Please paste the direct link.")
-        return None
+    def initialize_session(self):
+        try:
+            print("Initializing NSE Session...", flush=True)
+            self.session.get("https://www.nseindia.com", impersonate="chrome110", timeout=15)
+            time.sleep(1)
+            self.session.get("https://www.nseindia.com/option-chain", impersonate="chrome110", timeout=15)
+            self.initialized = True
+            return True
+        except Exception as e:
+            print(f"Session initialization failed: {e}", flush=True)
+            return False
 
-    print(f"Fetching {symbol} using provided link...", flush=True)
-    
-    # We use requests here since we assume the user provides a link that bypasses the main checks 
-    # or is a direct resource that behaves differently. 
-    # However, standard headers might still be needed.
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "*/*",
-        "Accept-Encoding": "gzip, deflate",
-        "Connection": "keep-alive"
-    }
-
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        # print(f"Response Status: {response.status_code}", flush=True)
+    def fetch_data(self, url):
+        if not self.initialized:
+            self.initialize_session()
+            
+        api_headers = self.headers.copy()
+        api_headers["Referer"] = "https://www.nseindia.com/option-chain"
+        api_headers["X-Requested-With"] = "XMLHttpRequest"
         
         try:
-            return response.json()
-        except json.JSONDecodeError:
-            print(f"JSON Decode Error for {symbol}!", flush=True)
+            response = self.session.get(url, impersonate="chrome110", headers=api_headers, timeout=10)
+            if response.status_code == 401 or response.status_code == 403:
+                self.initialize_session()
+                response = self.session.get(url, impersonate="chrome110", headers=api_headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data and "records" in data:
+                    return data
+            
+            print(f"Fetch failed for {url}. Status: {response.status_code}", flush=True)
             return None
-    except Exception as e:
-        print(f"Error fetching data: {e}", flush=True)
-        return None
+        except Exception as e:
+            print(f"Error fetching {url}: {e}", flush=True)
+            return None
 
-def get_current_expiry(data):
-    try:
-        expiry_dates = data["records"]["expiryDates"]
-        # Make sure we select an expiry that actually has data in the 'data' array
-        valid_expiries = set()
-        for item in data["records"].get("data", []):
-            if "expiryDate" in item:
-                valid_expiries.add(item["expiryDate"])
-                
-        for exp in expiry_dates:
-            if not valid_expiries or exp in valid_expiries:
-                return exp
-                
-        return expiry_dates[0]
-    except (KeyError, IndexError):
-        return None
+nse_fetcher = NSEFetcher()
+
+def load_links():
+    links = {}
+    if os.path.exists(LINKS_FILE):
+        try:
+            with open(LINKS_FILE, "r") as f:
+                for line in f:
+                    if "=" in line and not line.startswith("#"):
+                        k, v = line.split("=", 1)
+                        links[k.strip()] = v.strip()
+        except Exception as e:
+            print(f"Error loading {LINKS_FILE}: {e}")
+    return links
+
+def get_target_expiry(symbol, available_expiries):
+    """
+    Determines the target expiry date based on user requirements:
+    - NIFTY: Weekly (Tuesday)
+    - BANKNIFTY: Monthly (Last Tuesday of the month)
+    """
+    today = datetime.now().date()
+    expiry_dates = []
+    for d in available_expiries:
+        try:
+            dt = datetime.strptime(d, "%d-%b-%Y").date()
+            if dt >= today:
+                expiry_dates.append((dt, d))
+        except: continue
+    
+    expiry_dates.sort()
+    if not expiry_dates: return None
+
+    if symbol == "NIFTY":
+        # Rule: Next Tuesday
+        for dt, d_str in expiry_dates:
+            if dt.weekday() == 1: # Tuesday
+                return d_str
+        return expiry_dates[0][1]
+
+    elif symbol == "BANKNIFTY":
+        # Rule: Last Tuesday of the month
+        # Use first available expiry's month to find target
+        first_dt = expiry_dates[0][0]
+        curr_m, curr_y = first_dt.month, first_dt.year
+        
+        # Filter all expiries for this month
+        month_expiries = [x for x in expiry_dates if x[0].month == curr_m and x[0].year == curr_y]
+        
+        # Find the last Tuesday available in this month
+        last_tue = None
+        for dt, d_str in reversed(month_expiries):
+            if dt.weekday() == 1:
+                last_tue = d_str
+                break
+        
+        if last_tue: return last_tue
+        
+        # Fallback to the last expiry of the month (most common Monthly settlement)
+        return month_expiries[-1][1]
+
+    return expiry_dates[0][1]
 
 def save_expiries(symbol, data):
     try:
         if "records" in data and "expiryDates" in data["records"]:
             new_expiries = data["records"]["expiryDates"]
-            
-            # Load existing
             current_data = {}
             if os.path.exists(EXPIRIES_FILE):
                 try:
                     with open(EXPIRIES_FILE, 'r') as f:
                         current_data = json.load(f)
-                except:
-                    pass
-            
-            # Update
+                except: pass
             current_data[symbol] = new_expiries
-            
-            # Save
             with open(EXPIRIES_FILE, 'w') as f:
                 json.dump(current_data, f, indent=4)
-                
     except Exception as e:
         print(f"Error saving expiries for {symbol}: {e}")
 
@@ -189,39 +215,25 @@ def process_data(data, expiry_date):
     records = []
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Extract Index Change for Notifications
-    # Usually in records.index.change or records.index.pChange
-    index_change = 0
     try:
-        if "index" in data["records"]:
-             index_change = data["records"]["index"].get("change", 0)
-        elif "underlyingValue" in data["records"]:
-             # Fallback if change not explicitly explicitly provided, maybe unavailable
-             pass
-    except:
-        pass
-
-    try:
-        if not data["records"]["data"]:
-            return pd.DataFrame(), 0
+        # Check in records.data
+        all_data = data["records"]["data"]
+        if not all_data:
+            return pd.DataFrame()
             
-        # Inspect first item for debugging
-        # print("First item keys:", data["records"]["data"][0].keys(), flush=True)
-
-        for item in data["records"]["data"]:
-            # v3 API: items might not have 'expiryDate' if filtered by URL. 
-            # If 'expiryDate' is present, check it. If not, assume it matches.
+        for item in all_data:
+            # The job function should ensure we only fetch data for the target expiry,
+            # so this check might be redundant but kept for safety.
             if "expiryDate" in item and item["expiryDate"] != expiry_date:
                 continue
                 
             record = {
                 "Timestamp": timestamp,
-                "ExpiryDate": expiry_date, # Use the global expiry since item might not have it
+                "ExpiryDate": expiry_date,
                 "StrikePrice": item["strikePrice"],
                 "UnderlyingPrice": data["records"].get("underlyingValue", 0)
             }
                 
-            # CE Data
             if "CE" in item:
                 ce = item["CE"]
                 record.update({
@@ -238,7 +250,6 @@ def process_data(data, expiry_date):
                     "CE_ChangeInOI": 0, "CE_Volume": 0, "CE_IV": 0
                 })
 
-            # PE Data
             if "PE" in item:
                 pe = item["PE"]
                 record.update({
@@ -257,155 +268,120 @@ def process_data(data, expiry_date):
             
             records.append(record)
         
-        return pd.DataFrame(records), index_change
+        return pd.DataFrame(records)
     except Exception as e:
         print(f"Error processing data: {e}", flush=True)
-        return pd.DataFrame(), 0
+        return pd.DataFrame()
 
 def save_data(df, symbol):
-    if df.empty:
-        return
-
+    if df.empty: return
     session = None
     try:
         engine = get_db_engine()
         Session = sessionmaker(bind=engine)
         session = Session()
-        
         records = []
         for _, row in df.iterrows():
             record = OptionChainData(
                 timestamp=datetime.strptime(row['Timestamp'], "%Y-%m-%d %H:%M:%S"),
-                symbol=symbol,
-                expiry_date=row['ExpiryDate'],
-                strike_price=row['StrikePrice'],
-                underlying_price=row['UnderlyingPrice'],
-                
-                ce_last_price=row['CE_LastPrice'],
-                ce_change=row['CE_Change'],
-                ce_oi=row['CE_OI'],
-                ce_change_oi=row['CE_ChangeInOI'],
-                ce_volume=row['CE_Volume'],
-                ce_iv=row['CE_IV'],
-                
-                pe_last_price=row['PE_LastPrice'],
-                pe_change=row['PE_Change'],
-                pe_oi=row['PE_OI'],
-                pe_change_oi=row['PE_ChangeInOI'],
-                pe_volume=row['PE_Volume'],
-                pe_iv=row['PE_IV']
+                symbol=symbol, expiry_date=row['ExpiryDate'],
+                strike_price=row['StrikePrice'], underlying_price=row['UnderlyingPrice'],
+                ce_last_price=row['CE_LastPrice'], ce_change=row['CE_Change'],
+                ce_oi=row['CE_OI'], ce_change_oi=row['CE_ChangeInOI'],
+                ce_volume=row['CE_Volume'], ce_iv=row['CE_IV'],
+                pe_last_price=row['PE_LastPrice'], pe_change=row['PE_Change'],
+                pe_oi=row['PE_OI'], pe_change_oi=row['PE_ChangeInOI'],
+                pe_volume=row['PE_Volume'], pe_iv=row['PE_IV']
             )
             records.append(record)
-        
         session.add_all(records)
         session.commit()
-        print(f"Data saved for {symbol} to DB at {datetime.now().strftime('%H:%M:%S')}")
     except Exception as e:
         print(f"Error saving data for {symbol}: {e}")
-        if session:
-            session.rollback()
+        if session: session.rollback()
     finally:
-        if session:
-            session.close()
+        if session: session.close()
 
 def is_market_open():
-    """Checks if current time is within market hours (09:00 - 15:30) on weekdays."""
     now = datetime.now()
-    if now.weekday() > 4:
-        return False
-    
+    if now.weekday() > 4: return False
     current_time = now.time()
     start_time = datetime.strptime("09:00", "%H:%M").time()
     end_time = datetime.strptime("15:30", "%H:%M").time()
-    
     return start_time <= current_time <= end_time
 
-def process_single_symbol(symbol):
-    """Pipeline for a single symbol: Fetch -> Process -> Save"""
-    try:
-        data = fetch_data(symbol)
-        if data:
-            save_expiries(symbol, data) # Save full list
-            expiry_date = get_current_expiry(data)
-            if expiry_date:
-                print(f"Fetching {symbol} data for expiry: {expiry_date}")
-                df, index_change = process_data(data, expiry_date)
-                save_data(df, symbol)
-                
-                # --- NEW: Calculate Signal and Notify ---
-                try:
-                    if not df.empty:
-                        engine = get_db_engine()
-                        Session = sessionmaker(bind=engine)
-                        session = Session()
-                        
-                        # Convert last timestamp to datetime object
-                        last_ts_str = df.iloc[-1]['Timestamp']
-                        last_ts = datetime.strptime(last_ts_str, "%Y-%m-%d %H:%M:%S")
-                        
-                        signal_data = market_signals.calculate_signal(session, symbol, last_ts, OptionChainData)
-                        notifications.check_and_send(symbol, signal_data)
-                        
-                        session.close()
-                    else:
-                        print(f"No valid data returned for {symbol} expiry {expiry_date}, skipping signal check.")
-                except Exception as e:
-                    print(f"Error in signal notification for {symbol}: {e}")
-                # ----------------------------------------
-            else:
-                print(f"Could not determine expiry for {symbol}")
-        time.sleep(1) # Gentle delay per thread
-    except Exception as e:
-        print(f"Error processing {symbol}: {e}")
-
-from concurrent.futures import ThreadPoolExecutor
-
-def cleanup_old_db_files():
-    """Removes option chain database files older than 5 days to save space."""
-    try:
-        now = datetime.now()
-        for f in os.listdir(DATA_DIR):
-            if f.startswith("option_chain_") and f.endswith(".db"):
-                date_str = f.replace("option_chain_", "").replace(".db", "")
-                try:
-                    file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                    # If file is older than 5 days, delete it
-                    if (now - file_date).days > 5:
-                        file_path = os.path.join(DATA_DIR, f)
-                        os.remove(file_path)
-                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Deleted old data file: {f}")
-                except ValueError:
-                    pass
-    except Exception as e:
-        print(f"Error cleaning up old DB files: {e}")
-
 def job(force=False):
-    """Main job to be scheduled."""
     if not force and not is_market_open():
-        print(f"Market is closed. Skipping fetch at {datetime.now().strftime('%H:%M:%S')}")
+        print(f"Market closed. Skipping at {datetime.now().strftime('%H:%M:%S')}")
         return
 
     try:
-        print(f"Starting job at {datetime.now().strftime('%H:%M:%S')}")
+        print(f"--- Starting Fetch Job at {datetime.now().strftime('%H:%M:%S')} ---", flush=True)
+        links = load_links()
 
-        with ThreadPoolExecutor(max_workers=len(INDICES)) as executor:
-            executor.map(process_single_symbol, INDICES)
+        for symbol in INDICES:
+            print(f"[{symbol}] Initial fetch from links.txt...", flush=True)
+            initial_url = links.get(symbol)
+            if not initial_url:
+                initial_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}"
+            
+            data = nse_fetcher.fetch_data(initial_url)
+            if data:
+                save_expiries(symbol, data)
+                all_expiries = data["records"]["expiryDates"]
+                target_expiry = get_target_expiry(symbol, all_expiries)
+                
+                print(f"[{symbol}] Target Tuesday Expiry: {target_expiry}", flush=True)
+                
+                # If target_expiry is different from current URL, we might need a direct fetch for that expiry
+                # This check is simplified as the initial_url might not contain expiry info directly.
+                # We always fetch with the target expiry for consistency.
+                if target_expiry:
+                    print(f"[{symbol}] Fetching specific data for {target_expiry}...", flush=True)
+                    target_url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}&expiry={target_expiry}"
+                    data = nse_fetcher.fetch_data(target_url)
+                else:
+                    print(f"[{symbol}] Could not determine target expiry. Skipping data processing.", flush=True)
+                    data = None # Ensure data is None if target_expiry is not found
+                
+                if data:
+                    df = process_data(data, target_expiry)
+                    if not df.empty:
+                        save_data(df, symbol)
+                        
+                        # Automated Trading Logic
+                        try:
+                            engine = get_db_engine()
+                            Session = sessionmaker(bind=engine)
+                            session = Session()
+                            latest_ts = datetime.strptime(df.iloc[0]['Timestamp'], "%Y-%m-%d %H:%M:%S")
+                            sig_data = market_signals.calculate_signal(session, symbol, latest_ts, OptionChainData)
+                            print(f"[{symbol}] Signal: {sig_data.get('signal')} ({sig_data.get('color')}) | Spot: {sig_data.get('spot')}")
+                            
+                            current_time = datetime.now().time()
+                            start_time = datetime.strptime("09:25", "%H:%M").time()
+                            if current_time >= start_time:
+                                zerodha_trader.trader.execute_trade(sig_data, symbol, target_expiry)
+                            
+                            zerodha_trader.trader.manage_risk(symbol)
+                            session.close()
+                        except Exception as trade_e:
+                            print(f"Trade Logic Error [{symbol}]: {trade_e}")
+                    else:
+                        print(f"[{symbol}] Processed data is empty.")
+                else:
+                    print(f"[{symbol}] Failed to fetch target data.")
+            else:
+                print(f"[{symbol}] Failed to initialize data from links.")
+            time.sleep(2)
+        print(f"--- Job Finished at {datetime.now().strftime('%H:%M:%S')} ---", flush=True)
     except Exception as e:
-        print(f"CRITICAL ERROR in job: {e}")
+        print(f"CRITICAL ERROR in Job: {e}")
 
 if __name__ == "__main__":
-    print("Starting NSE Option Chain Data Fetcher (SQL Storage)...")
-    # Cleanup old DB files at startup
-    cleanup_old_db_files()
-    
-    # Run once immediately (forced)
+    print("NSE Option Chain Bot Started.")
     job(force=True)
-    
-    # Schedule every 1 minute for data fetching
     schedule.every(1).minutes.do(job)
-    # Schedule cleanup once a day at midnight
-    schedule.every().day.at("00:00").do(cleanup_old_db_files)
-    
     while True:
         schedule.run_pending()
         time.sleep(1)
