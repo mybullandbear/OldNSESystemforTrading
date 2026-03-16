@@ -7,4 +7,4 @@ selenium
 webdriver_manager
 kiteconnect
 flask-cors
-
+curl_cffi
