@@ -10,6 +10,7 @@ services:
       - ./option_chain.db:/app/option_chain.db
     environment:
       - PYTHONUNBUFFERED=1
+      - TZ=Asia/Kolkata
 
   frontend:
     build:
